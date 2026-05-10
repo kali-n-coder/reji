@@ -36,7 +36,8 @@ service cloud.firestore {
         && request.resource.data.total >= 0
         && request.resource.data.paymentMethod in ['cash', 'paypay', 'other'];
       allow read: if isAdmin();
-      allow update, delete: if false;
+      allow delete: if isAdmin();
+      allow update: if false;
     }
   }
 }

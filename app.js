@@ -11,13 +11,14 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   getFirestore,
   increment,
   onSnapshot,
-  query,
   runTransaction,
   serverTimestamp,
   setDoc,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 const yen = new Intl.NumberFormat("ja-JP", {
@@ -51,6 +52,7 @@ const adminDashboard = $("#adminDashboard");
 const logoutButton = $("#logoutButton");
 const adminProducts = $("#adminProducts");
 const recentOrders = $("#recentOrders");
+const resetDataMessage = $("#resetDataMessage");
 
 connectionStatus.textContent = hasFirebaseConfig ? "Firebase接続中" : "Firebase未設定";
 
@@ -295,6 +297,7 @@ $("#productForm").addEventListener("submit", async (event) => {
 });
 
 $("#resetProductFormButton").addEventListener("click", resetProductForm);
+$("#resetAllDataButton").addEventListener("click", resetAllData);
 
 function renderAdminProducts() {
   if (!state.isAdmin) return;
@@ -332,6 +335,54 @@ function editProduct(product) {
 async function removeProduct(productId) {
   if (!confirm("この商品を削除しますか？")) return;
   await deleteDoc(doc(db, "products", productId));
+}
+
+async function resetAllData() {
+  if (!state.isAdmin) return;
+
+  const typed = prompt("商品と購入データをすべて削除します。実行するには「削除」と入力してください。");
+  if (typed !== "削除") {
+    showMessage(resetDataMessage, "初期化をキャンセルしました。", "");
+    return;
+  }
+
+  const button = $("#resetAllDataButton");
+  button.disabled = true;
+  showMessage(resetDataMessage, "削除中です...", "");
+
+  try {
+    await deleteCollectionDocs("products");
+    await deleteCollectionDocs("orders");
+    state.cart.clear();
+    renderCart();
+    resetProductForm();
+    showMessage(resetDataMessage, "商品データと購入データを削除しました。", "success");
+  } catch (error) {
+    showMessage(resetDataMessage, error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function deleteCollectionDocs(collectionName) {
+  let batch = writeBatch(db);
+  let operationCount = 0;
+  const snapshot = await getDocs(collection(db, collectionName));
+
+  for (const item of snapshot.docs) {
+    batch.delete(item.ref);
+    operationCount += 1;
+
+    if (operationCount === 450) {
+      await batch.commit();
+      batch = writeBatch(db);
+      operationCount = 0;
+    }
+  }
+
+  if (operationCount > 0) {
+    await batch.commit();
+  }
 }
 
 function resetProductForm() {

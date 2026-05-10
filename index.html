@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>文化祭3Dプリント レジ</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">文化祭 3D Printer Shop</p>
+        <h1>3Dプリント レジ</h1>
+      </div>
+      <div class="status-pill" id="connectionStatus">Firebase未接続</div>
+    </header>
+
+    <main class="app-shell">
+      <section class="register-panel" aria-labelledby="registerTitle">
+        <div class="section-heading">
+          <div>
+            <h2 id="registerTitle">販売レジ</h2>
+            <p>商品を選んで会計を保存します。</p>
+          </div>
+          <button class="ghost-button" id="clearCartButton" type="button">カートを空にする</button>
+        </div>
+
+        <div class="product-grid" id="productGrid"></div>
+      </section>
+
+      <aside class="cart-panel" aria-labelledby="cartTitle">
+        <div class="section-heading compact">
+          <div>
+            <h2 id="cartTitle">会計</h2>
+            <p id="cartCount">0点</p>
+          </div>
+        </div>
+
+        <div class="cart-list" id="cartList">
+          <p class="muted">商品をタップするとここに入ります。</p>
+        </div>
+
+        <div class="total-row">
+          <span>合計</span>
+          <strong id="cartTotal">¥0</strong>
+        </div>
+
+        <label class="field">
+          <span>支払い方法</span>
+          <select id="paymentMethod">
+            <option value="cash">現金</option>
+            <option value="paypay">PayPay</option>
+            <option value="other">その他</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>メモ</span>
+          <input id="orderNote" type="text" placeholder="例: 取り置き、色違い希望">
+        </label>
+
+        <button class="primary-button" id="checkoutButton" type="button">会計を保存</button>
+        <p class="message" id="checkoutMessage" role="status"></p>
+      </aside>
+    </main>
+
+    <section class="admin-section" aria-labelledby="adminTitle">
+      <div class="section-heading">
+        <div>
+          <h2 id="adminTitle">管理者</h2>
+          <p>ログインすると商品の追加・編集・削除と売上確認ができます。</p>
+        </div>
+        <button class="ghost-button hidden" id="logoutButton" type="button">ログアウト</button>
+      </div>
+
+      <div class="admin-login" id="adminLogin">
+        <label class="field">
+          <span>メールアドレス</span>
+          <input id="adminEmail" type="email" autocomplete="email" placeholder="admin@example.com">
+        </label>
+        <label class="field">
+          <span>パスワード</span>
+          <input id="adminPassword" type="password" autocomplete="current-password">
+        </label>
+        <button class="primary-button" id="loginButton" type="button">管理者ログイン</button>
+        <p class="message" id="loginMessage" role="status"></p>
+      </div>
+
+      <div class="admin-dashboard hidden" id="adminDashboard">
+        <form class="product-form" id="productForm">
+          <input type="hidden" id="productId">
+          <label class="field">
+            <span>商品名</span>
+            <input id="productName" required maxlength="40" placeholder="例: キーホルダー">
+          </label>
+          <label class="field">
+            <span>価格</span>
+            <input id="productPrice" required type="number" min="0" step="10" placeholder="300">
+          </label>
+          <label class="field">
+            <span>在庫</span>
+            <input id="productStock" required type="number" min="0" step="1" placeholder="20">
+          </label>
+          <label class="field">
+            <span>色</span>
+            <input id="productColor" type="color" value="#0f766e">
+          </label>
+          <label class="field wide">
+            <span>説明</span>
+            <input id="productDescription" maxlength="90" placeholder="素材やサイズなど">
+          </label>
+          <label class="toggle">
+            <input id="productActive" type="checkbox" checked>
+            <span>販売中</span>
+          </label>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">商品を保存</button>
+            <button class="ghost-button" id="resetProductFormButton" type="button">新規入力</button>
+          </div>
+        </form>
+
+        <div class="admin-columns">
+          <section>
+            <h3>商品一覧</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>商品</th>
+                    <th>価格</th>
+                    <th>在庫</th>
+                    <th>状態</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="adminProducts"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section>
+            <h3>本日の売上</h3>
+            <div class="sales-summary">
+              <div><span>売上</span><strong id="todayRevenue">¥0</strong></div>
+              <div><span>注文</span><strong id="todayOrders">0件</strong></div>
+            </div>
+            <div class="order-list" id="recentOrders"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <template id="productCardTemplate">
+      <article class="product-card">
+        <div class="product-color"></div>
+        <div>
+          <h3></h3>
+          <p></p>
+        </div>
+        <div class="product-footer">
+          <strong></strong>
+          <button type="button">追加</button>
+        </div>
+      </article>
+    </template>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

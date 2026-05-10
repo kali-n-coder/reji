@@ -18,7 +18,6 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
-  where
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 const yen = new Intl.NumberFormat("ja-JP", {
@@ -104,13 +103,10 @@ if (hasFirebaseConfig) {
 function subscribeProducts(includeInactive) {
   if (unsubscribeProducts) unsubscribeProducts();
 
-  const productsQuery = includeInactive
-    ? collection(db, "products")
-    : query(collection(db, "products"), where("active", "==", true));
-
-  unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
+  unsubscribeProducts = onSnapshot(collection(db, "products"), (snapshot) => {
     state.products = snapshot.docs
       .map((item) => ({ id: item.id, ...item.data() }))
+      .filter((product) => includeInactive || product.active === true)
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "ja"));
     renderProducts();
     renderCart();

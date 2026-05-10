@@ -107,10 +107,12 @@ function subscribeProducts(includeInactive) {
 
   const productsQuery = includeInactive
     ? query(collection(db, "products"), orderBy("name"))
-    : query(collection(db, "products"), where("active", "==", true), orderBy("name"));
+    : query(collection(db, "products"), where("active", "==", true));
 
   unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
-    state.products = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+    state.products = snapshot.docs
+      .map((item) => ({ id: item.id, ...item.data() }))
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "ja"));
     renderProducts();
     renderCart();
     renderAdminProducts();

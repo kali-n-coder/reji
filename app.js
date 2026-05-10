@@ -14,7 +14,6 @@ import {
   getFirestore,
   increment,
   onSnapshot,
-  orderBy,
   query,
   runTransaction,
   serverTimestamp,
@@ -106,7 +105,7 @@ function subscribeProducts(includeInactive) {
   if (unsubscribeProducts) unsubscribeProducts();
 
   const productsQuery = includeInactive
-    ? query(collection(db, "products"), orderBy("name"))
+    ? collection(db, "products")
     : query(collection(db, "products"), where("active", "==", true));
 
   unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
@@ -352,14 +351,12 @@ function subscribeOrders() {
 
   const start = new Date();
   start.setHours(0, 0, 0, 0);
-  const ordersQuery = query(
-    collection(db, "orders"),
-    where("createdAt", ">=", start),
-    orderBy("createdAt", "desc")
-  );
 
-  unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
-    const orders = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+  unsubscribeOrders = onSnapshot(collection(db, "orders"), (snapshot) => {
+    const orders = snapshot.docs
+      .map((item) => ({ id: item.id, ...item.data() }))
+      .filter((order) => order.createdAt?.toDate && order.createdAt.toDate() >= start)
+      .sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
     const total = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
     $("#todayRevenue").textContent = yen.format(total);
     $("#todayOrders").textContent = `${orders.length}件`;

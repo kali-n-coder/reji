@@ -53,6 +53,16 @@
           </select>
         </label>
 
+        <label class="field" id="cashReceivedField">
+          <span>預かった金額</span>
+          <input id="cashReceived" type="number" min="0" step="10" placeholder="例: 1000">
+        </label>
+
+        <div class="change-row" id="changeDueRow">
+          <span>お釣り</span>
+          <strong id="changeDue">¥0</strong>
+        </div>
+
         <label class="field">
           <span>メモ</span>
           <input id="orderNote" type="text" placeholder="例: 取り置き、色違い希望">
@@ -162,6 +172,7 @@
       <article class="product-card">
         <div class="product-color"></div>
         <div>
+          <span class="stock-badge"></span>
           <h3></h3>
           <p></p>
         </div>

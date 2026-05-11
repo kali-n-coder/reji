@@ -44,6 +44,10 @@ const productTemplate = $("#productCardTemplate");
 const cartList = $("#cartList");
 const cartCount = $("#cartCount");
 const cartTotal = $("#cartTotal");
+const cashReceived = $("#cashReceived");
+const cashReceivedField = $("#cashReceivedField");
+const changeDue = $("#changeDue");
+const changeDueRow = $("#changeDueRow");
 const checkoutButton = $("#checkoutButton");
 const checkoutMessage = $("#checkoutMessage");
 const connectionStatus = $("#connectionStatus");
@@ -132,11 +136,16 @@ function renderProducts() {
 
   sellable.forEach((product) => {
     const card = productTemplate.content.firstElementChild.cloneNode(true);
-    const isSoldOut = Number(product.stock ?? 0) <= 0;
+    const stock = Number(product.stock ?? 0);
+    const isSoldOut = stock <= 0;
+    const isLowStock = stock > 0 && stock <= 3;
     card.classList.toggle("sold-out", isSoldOut);
+    card.classList.toggle("low-stock", isLowStock);
     card.querySelector(".product-color").style.background = product.color || "#0f766e";
+    const badge = card.querySelector(".stock-badge");
+    badge.textContent = isSoldOut ? "売り切れ" : isLowStock ? `残り${stock}個` : "販売中";
     card.querySelector("h3").textContent = product.name;
-    card.querySelector("p").textContent = `${product.description || "3Dプリンター作品"} / 在庫 ${product.stock ?? 0}`;
+    card.querySelector("p").textContent = `${product.description || "3Dプリンター作品"} / 在庫 ${stock}`;
     card.querySelector("strong").textContent = yen.format(product.price || 0);
     const button = card.querySelector("button");
     button.disabled = isSoldOut;
@@ -197,6 +206,7 @@ function renderCart() {
 
   cartCount.textContent = `${totalItems}点`;
   cartTotal.textContent = yen.format(totalPrice);
+  updateChangeDue(totalPrice);
   checkoutButton.disabled = totalItems === 0 || !hasFirebaseConfig;
 }
 
@@ -213,6 +223,7 @@ function updateQuantity(productId, quantity) {
 checkoutButton.addEventListener("click", async () => {
   if (!hasFirebaseConfig) return;
   if (state.cart.size === 0) return;
+  if (!confirm(`${cartCount.textContent}、合計 ${cartTotal.textContent} で会計を保存しますか？`)) return;
   checkoutButton.disabled = true;
 
   try {
@@ -248,15 +259,20 @@ checkoutButton.addEventListener("click", async () => {
     });
 
     state.cart.clear();
+    cashReceived.value = "";
     $("#orderNote").value = "";
     renderCart();
     showMessage(checkoutMessage, "会計を保存しました。", "success");
   } catch (error) {
-    showMessage(checkoutMessage, error.message, "error");
+    showMessage(checkoutMessage, friendlyError(error), "error");
   } finally {
-    checkoutButton.disabled = state.cart.size === 0;
+    checkoutButton.disabled = state.cart.size === 0 || !hasFirebaseConfig;
   }
 });
+
+cashReceived.addEventListener("input", () => renderCart());
+$("#paymentMethod").addEventListener("change", updatePaymentFields);
+updatePaymentFields();
 
 $("#clearCartButton").addEventListener("click", () => {
   state.cart.clear();
@@ -340,19 +356,25 @@ async function removeProduct(productId) {
 async function resetAllData() {
   if (!state.isAdmin) return;
 
-  const typed = prompt("商品と購入データをすべて削除します。実行するには「削除」と入力してください。");
-  if (typed !== "削除") {
-    showMessage(resetDataMessage, "初期化をキャンセルしました。", "");
-    return;
-  }
-
   const button = $("#resetAllDataButton");
   button.disabled = true;
-  showMessage(resetDataMessage, "削除中です...", "");
+  showMessage(resetDataMessage, "削除するデータ数を確認中です...", "");
 
   try {
-    await deleteCollectionDocs("products");
-    await deleteCollectionDocs("orders");
+    const [productsSnapshot, ordersSnapshot] = await Promise.all([
+      getDocs(collection(db, "products")),
+      getDocs(collection(db, "orders"))
+    ]);
+    const typed = prompt(`商品 ${productsSnapshot.size} 件、購入データ ${ordersSnapshot.size} 件を削除します。実行するには「削除」と入力してください。`);
+
+    if (typed !== "削除") {
+      showMessage(resetDataMessage, "初期化をキャンセルしました。", "");
+      return;
+    }
+
+    showMessage(resetDataMessage, "削除中です...", "");
+    await deleteSnapshotDocs(productsSnapshot);
+    await deleteSnapshotDocs(ordersSnapshot);
     state.cart.clear();
     renderCart();
     resetProductForm();
@@ -364,10 +386,9 @@ async function resetAllData() {
   }
 }
 
-async function deleteCollectionDocs(collectionName) {
+async function deleteSnapshotDocs(snapshot) {
   let batch = writeBatch(db);
   let operationCount = 0;
-  const snapshot = await getDocs(collection(db, collectionName));
 
   for (const item of snapshot.docs) {
     batch.delete(item.ref);
@@ -429,9 +450,40 @@ function paymentLabel(value) {
   }[value] || value;
 }
 
+function updateChangeDue(totalPrice) {
+  const received = Number(cashReceived.value || 0);
+  const change = Math.max(received - totalPrice, 0);
+  changeDue.textContent = yen.format(change);
+  changeDue.classList.toggle("short", received > 0 && received < totalPrice);
+}
+
+function updatePaymentFields() {
+  const isCash = $("#paymentMethod").value === "cash";
+  cashReceivedField.classList.toggle("hidden", !isCash);
+  changeDueRow.classList.toggle("hidden", !isCash);
+  if (!isCash) {
+    cashReceived.value = "";
+    updateChangeDue(0);
+  }
+}
+
 function showMessage(element, text, type) {
   element.textContent = text;
   element.className = `message ${type || ""}`.trim();
+}
+
+function friendlyError(error) {
+  const message = error?.message || "";
+  if (message.includes("permission") || message.includes("Missing or insufficient permissions")) {
+    return "保存できませんでした。ログイン状態やFirebaseルールを確認してください。";
+  }
+  if (message.includes("在庫が足りません")) {
+    return message;
+  }
+  if (message.includes("offline") || message.includes("network")) {
+    return "ネット接続が不安定です。接続を確認してもう一度試してください。";
+  }
+  return message || "うまく保存できませんでした。もう一度試してください。";
 }
 
 function escapeHtml(value) {

@@ -146,6 +146,10 @@ h3 {
   opacity: 0.58;
 }
 
+.product-card.low-stock {
+  border-color: rgba(180, 35, 24, 0.38);
+}
+
 .product-card .product-color {
   width: 100%;
   height: 8px;
@@ -164,6 +168,24 @@ h3 {
 .product-card p {
   color: var(--muted);
   line-height: 1.5;
+}
+
+.stock-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--accent-dark);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.low-stock .stock-badge,
+.sold-out .stock-badge {
+  background: rgba(180, 35, 24, 0.1);
+  color: var(--danger);
 }
 
 .product-footer {
@@ -272,6 +294,24 @@ h3 {
 
 .total-row strong {
   font-size: 1.6rem;
+}
+
+.change-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -4px 0 14px;
+  color: var(--muted);
+}
+
+.change-row strong {
+  color: var(--ok);
+  font-size: 1.25rem;
+}
+
+.change-row strong.short {
+  color: var(--danger);
 }
 
 .field {

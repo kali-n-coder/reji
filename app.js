@@ -425,7 +425,6 @@ function subscribeOrders() {
 function paymentLabel(value) {
   return {
     cash: "現金",
-    paypay: "PayPay",
     other: "その他"
   }[value] || value;
 }

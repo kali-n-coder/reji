@@ -34,7 +34,7 @@ service cloud.firestore {
       allow create: if request.resource.data.items is list
         && request.resource.data.total is number
         && request.resource.data.total >= 0
-        && request.resource.data.paymentMethod in ['cash', 'paypay', 'other'];
+        && request.resource.data.paymentMethod in ['cash', 'other'];
       allow read: if isAdmin();
       allow delete: if isAdmin();
       allow update: if false;

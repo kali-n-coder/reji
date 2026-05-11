@@ -25,6 +25,13 @@
           <button class="ghost-button" id="clearCartButton" type="button">カートを空にする</button>
         </div>
 
+        <div class="toolbar">
+          <label class="field search-field">
+            <span>商品検索</span>
+            <input id="productSearch" type="search" placeholder="商品名や説明で探す">
+          </label>
+        </div>
+
         <div class="product-grid" id="productGrid"></div>
       </section>
 
@@ -140,6 +147,21 @@
         <div class="admin-columns">
           <section>
             <h3>商品一覧</h3>
+            <div class="toolbar">
+              <label class="field search-field">
+                <span>商品検索</span>
+                <input id="adminProductSearch" type="search" placeholder="商品名で探す">
+              </label>
+              <label class="field small-field">
+                <span>表示</span>
+                <select id="adminProductFilter">
+                  <option value="all">すべて</option>
+                  <option value="active">販売中</option>
+                  <option value="inactive">停止中</option>
+                  <option value="soldout">在庫0</option>
+                </select>
+              </label>
+            </div>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -162,6 +184,14 @@
               <div><span>売上</span><strong id="todayRevenue">¥0</strong></div>
               <div><span>注文</span><strong id="todayOrders">0件</strong></div>
             </div>
+            <div class="sales-tools">
+              <label class="field search-field">
+                <span>注文検索</span>
+                <input id="orderSearch" type="search" placeholder="商品名やメモで探す">
+              </label>
+              <button class="ghost-button" id="downloadCsvButton" type="button">CSV保存</button>
+            </div>
+            <div class="ranking-list" id="salesRanking"></div>
             <div class="order-list" id="recentOrders"></div>
           </section>
         </div>

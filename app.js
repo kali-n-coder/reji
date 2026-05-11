@@ -35,11 +35,13 @@ const auth = app ? getAuth(app) : null;
 const state = {
   products: [],
   cart: new Map(),
-  isAdmin: false
+  isAdmin: false,
+  todayOrders: []
 };
 
 const $ = (selector) => document.querySelector(selector);
 const productGrid = $("#productGrid");
+const productSearch = $("#productSearch");
 const productTemplate = $("#productCardTemplate");
 const cartList = $("#cartList");
 const cartCount = $("#cartCount");
@@ -55,7 +57,12 @@ const adminLogin = $("#adminLogin");
 const adminDashboard = $("#adminDashboard");
 const logoutButton = $("#logoutButton");
 const adminProducts = $("#adminProducts");
+const adminProductSearch = $("#adminProductSearch");
+const adminProductFilter = $("#adminProductFilter");
 const recentOrders = $("#recentOrders");
+const orderSearch = $("#orderSearch");
+const salesRanking = $("#salesRanking");
+const downloadCsvButton = $("#downloadCsvButton");
 const resetDataMessage = $("#resetDataMessage");
 
 connectionStatus.textContent = hasFirebaseConfig ? "Firebase接続中" : "Firebase未設定";
@@ -126,7 +133,12 @@ function subscribeProducts(includeInactive) {
 }
 
 function renderProducts() {
-  const sellable = state.products.filter((product) => product.active !== false);
+  const term = normalizeText(productSearch.value);
+  const sellable = state.products.filter((product) => {
+    if (product.active === false) return false;
+    if (!term) return true;
+    return normalizeText(`${product.name || ""} ${product.description || ""}`).includes(term);
+  });
   productGrid.innerHTML = "";
 
   if (sellable.length === 0) {
@@ -273,6 +285,11 @@ checkoutButton.addEventListener("click", async () => {
 cashReceived.addEventListener("input", () => renderCart());
 $("#paymentMethod").addEventListener("change", updatePaymentFields);
 updatePaymentFields();
+productSearch.addEventListener("input", renderProducts);
+adminProductSearch.addEventListener("input", renderAdminProducts);
+adminProductFilter.addEventListener("change", renderAdminProducts);
+orderSearch.addEventListener("input", renderOrders);
+downloadCsvButton.addEventListener("click", downloadOrdersCsv);
 
 $("#clearCartButton").addEventListener("click", () => {
   state.cart.clear();
@@ -319,7 +336,22 @@ function renderAdminProducts() {
   if (!state.isAdmin) return;
   adminProducts.innerHTML = "";
 
-  state.products.forEach((product) => {
+  const term = normalizeText(adminProductSearch.value);
+  const filter = adminProductFilter.value;
+  const products = state.products.filter((product) => {
+    if (term && !normalizeText(product.name || "").includes(term)) return false;
+    if (filter === "active") return product.active !== false;
+    if (filter === "inactive") return product.active === false;
+    if (filter === "soldout") return Number(product.stock || 0) <= 0;
+    return true;
+  });
+
+  if (products.length === 0) {
+    adminProducts.innerHTML = '<tr><td colspan="5" class="muted">表示できる商品がありません。</td></tr>';
+    return;
+  }
+
+  products.forEach((product) => {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${escapeHtml(product.name)}</td>
@@ -328,10 +360,12 @@ function renderAdminProducts() {
       <td>${product.active === false ? "停止中" : "販売中"}</td>
       <td>
         <button class="ghost-button" type="button" data-action="edit">編集</button>
+        <button class="ghost-button" type="button" data-action="copy">コピー</button>
         <button class="ghost-button" type="button" data-action="delete">削除</button>
       </td>
     `;
     row.querySelector('[data-action="edit"]').addEventListener("click", () => editProduct(product));
+    row.querySelector('[data-action="copy"]').addEventListener("click", () => copyProduct(product));
     row.querySelector('[data-action="delete"]').addEventListener("click", () => removeProduct(product.id));
     adminProducts.append(row);
   });
@@ -346,6 +380,10 @@ function editProduct(product) {
   $("#productDescription").value = product.description || "";
   $("#productActive").checked = product.active !== false;
   $("#productName").focus();
+}
+
+function copyProduct(product) {
+  editProduct({ ...product, id: "", name: `${product.name || ""} コピー`, stock: 0, active: false });
 }
 
 async function removeProduct(productId) {
@@ -421,15 +459,31 @@ function subscribeOrders() {
   start.setHours(0, 0, 0, 0);
 
   unsubscribeOrders = onSnapshot(collection(db, "orders"), (snapshot) => {
-    const orders = snapshot.docs
+    state.todayOrders = snapshot.docs
       .map((item) => ({ id: item.id, ...item.data() }))
       .filter((order) => order.createdAt?.toDate && order.createdAt.toDate() >= start)
       .sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
+    renderOrders();
+  });
+}
+
+function renderOrders() {
+  if (!state.isAdmin) return;
+
+  const orders = state.todayOrders;
+  const term = normalizeText(orderSearch.value);
+  const visibleOrders = orders.filter((order) => {
+    if (!term) return true;
+    const items = (order.items || []).map((item) => item.name).join(" ");
+    return normalizeText(`${items} ${order.note || ""} ${paymentLabel(order.paymentMethod)}`).includes(term);
+  });
+
     const total = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
     $("#todayRevenue").textContent = yen.format(total);
     $("#todayOrders").textContent = `${orders.length}件`;
+    renderSalesRanking(orders);
 
-    recentOrders.innerHTML = orders.slice(0, 20).map((order) => {
+    recentOrders.innerHTML = visibleOrders.slice(0, 30).map((order) => {
       const time = order.createdAt?.toDate ? order.createdAt.toDate().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }) : "--:--";
       const items = (order.items || []).map((item) => `${escapeHtml(item.name)} x ${item.quantity}`).join("、");
       return `
@@ -439,8 +493,32 @@ function subscribeOrders() {
           <p class="muted">${paymentLabel(order.paymentMethod)} ${escapeHtml(order.note || "")}</p>
         </article>
       `;
-    }).join("") || '<p class="muted">今日の注文はまだありません。</p>';
+    }).join("") || '<p class="muted">表示できる注文がありません。</p>';
+}
+
+function renderSalesRanking(orders) {
+  const totals = new Map();
+
+  orders.forEach((order) => {
+    (order.items || []).forEach((item) => {
+      const current = totals.get(item.name) || { quantity: 0, revenue: 0 };
+      current.quantity += Number(item.quantity || 0);
+      current.revenue += Number(item.subtotal || 0);
+      totals.set(item.name, current);
+    });
   });
+
+  const ranking = [...totals.entries()]
+    .sort((a, b) => b[1].quantity - a[1].quantity)
+    .slice(0, 5);
+
+  salesRanking.innerHTML = ranking.map(([name, item], index) => `
+    <div class="ranking-item">
+      <span>${index + 1}</span>
+      <strong>${escapeHtml(name)}</strong>
+      <small>${item.quantity}個 / ${yen.format(item.revenue)}</small>
+    </div>
+  `).join("") || '<p class="muted">商品別ランキングはまだありません。</p>';
 }
 
 function paymentLabel(value) {
@@ -448,6 +526,46 @@ function paymentLabel(value) {
     cash: "現金",
     other: "その他"
   }[value] || value;
+}
+
+function downloadOrdersCsv() {
+  if (state.todayOrders.length === 0) {
+    showMessage(resetDataMessage, "保存できる購入データがまだありません。", "");
+    return;
+  }
+
+  const rows = [["時間", "商品", "数量", "小計", "支払い方法", "メモ", "注文合計"]];
+  state.todayOrders.forEach((order) => {
+    const time = order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString("ja-JP") : "";
+    (order.items || []).forEach((item) => {
+      rows.push([
+        time,
+        item.name || "",
+        item.quantity || 0,
+        item.subtotal || 0,
+        paymentLabel(order.paymentMethod),
+        order.note || "",
+        order.total || 0
+      ]);
+    });
+  });
+
+  const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+  const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `sales-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvCell(value) {
+  return `"${String(value).replaceAll('"', '""')}"`;
+}
+
+function normalizeText(value) {
+  return String(value).trim().toLowerCase();
 }
 
 function updateChangeDue(totalPrice) {

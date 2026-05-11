@@ -126,6 +126,27 @@ h3 {
   margin-bottom: 12px;
 }
 
+.toolbar,
+.sales-tools {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.toolbar .field,
+.sales-tools .field {
+  margin-bottom: 0;
+}
+
+.search-field {
+  flex: 1 1 220px;
+}
+
+.small-field {
+  flex: 0 0 140px;
+}
+
 .product-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
@@ -461,7 +482,8 @@ td button {
 }
 
 .sales-summary div,
-.order-card {
+.order-card,
+.ranking-item {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 14px;
@@ -476,6 +498,36 @@ td button {
 
 .sales-summary strong {
   font-size: 1.4rem;
+}
+
+.ranking-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ranking-item {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.ranking-item span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+
+.ranking-item small {
+  color: var(--muted);
+  text-align: right;
 }
 
 .order-list {
@@ -503,6 +555,16 @@ td button {
   .product-form,
   .danger-zone {
     grid-template-columns: 1fr;
+  }
+
+  .toolbar,
+  .sales-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .small-field {
+    flex-basis: auto;
   }
 
   .field.wide {
